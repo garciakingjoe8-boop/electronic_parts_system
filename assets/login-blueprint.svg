@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+<defs><pattern id="s" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#c3cfdf" stroke-opacity=".05" stroke-width="1"/></pattern>
+<pattern id="m" width="200" height="200" patternUnits="userSpaceOnUse"><path d="M200 0H0V200" fill="none" stroke="#c3cfdf" stroke-opacity=".10" stroke-width="1"/></pattern>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 10 5 0 9z" fill="#c3cfdf" fill-opacity=".6"/></marker></defs>
+<rect width="1600" height="1000" fill="url(#s)"/><rect width="1600" height="1000" fill="url(#m)"/>
+<g fill="none" stroke="#c3cfdf" stroke-width="1.2" stroke-opacity=".28">
+<g transform="translate(1180 230) rotate(0)">
+<rect x="-75.0" y="-75.0" width="150" height="150" rx="3"/>
+<rect x="-61.49999999999999" y="-61.49999999999999" width="122.99999999999999" height="122.99999999999999" stroke-opacity=".5"/>
+<circle r="40.5"/><circle r="30.0" stroke-opacity=".6"/>
+<circle cx="-58.5" cy="-58.5" r="8.25"/>
+<circle cx="-58.5" cy="58.5" r="8.25"/>
+<circle cx="58.5" cy="-58.5" r="8.25"/>
+<circle cx="58.5" cy="58.5" r="8.25"/>
+<path d="M-99.0 0H99.0M0 -99.0V99.0" stroke-dasharray="16 4 3 4" stroke="#d9a85f" stroke-opacity=".5"/>
+</g>
+<g transform="translate(1420 720) rotate(0)">
+<rect x="-60.0" y="-60.0" width="120" height="120" rx="3"/>
+<rect x="-49.199999999999996" y="-49.199999999999996" width="98.39999999999999" height="98.39999999999999" stroke-opacity=".5"/>
+<circle r="32.400000000000006"/><circle r="24.0" stroke-opacity=".6"/>
+<circle cx="-46.800000000000004" cy="-46.800000000000004" r="6.6"/>
+<circle cx="-46.800000000000004" cy="46.800000000000004" r="6.6"/>
+<circle cx="46.800000000000004" cy="-46.800000000000004" r="6.6"/>
+<circle cx="46.800000000000004" cy="46.800000000000004" r="6.6"/>
+<path d="M-84.0 0H84.0M0 -84.0V84.0" stroke-dasharray="16 4 3 4" stroke="#d9a85f" stroke-opacity=".5"/>
+</g>
+<g transform="translate(980 820) rotate(0)">
+<rect x="-45.0" y="-45.0" width="90" height="90" rx="3"/>
+<rect x="-36.9" y="-36.9" width="73.8" height="73.8" stroke-opacity=".5"/>
+<circle r="24.3"/><circle r="18.0" stroke-opacity=".6"/>
+<circle cx="-35.1" cy="-35.1" r="4.95"/>
+<circle cx="-35.1" cy="35.1" r="4.95"/>
+<circle cx="35.1" cy="-35.1" r="4.95"/>
+<circle cx="35.1" cy="35.1" r="4.95"/>
+<path d="M-69.0 0H69.0M0 -69.0V69.0" stroke-dasharray="16 4 3 4" stroke="#d9a85f" stroke-opacity=".5"/>
+</g>
+<g transform="translate(1500 130) rotate(0)">
+<rect x="-35.0" y="-35.0" width="70" height="70" rx="3"/>
+<rect x="-28.7" y="-28.7" width="57.4" height="57.4" stroke-opacity=".5"/>
+<circle r="18.900000000000002"/><circle r="14.0" stroke-opacity=".6"/>
+<circle cx="-27.3" cy="-27.3" r="3.85"/>
+<circle cx="-27.3" cy="27.3" r="3.85"/>
+<circle cx="27.3" cy="-27.3" r="3.85"/>
+<circle cx="27.3" cy="27.3" r="3.85"/>
+<path d="M-59.0 0H59.0M0 -59.0V59.0" stroke-dasharray="16 4 3 4" stroke="#d9a85f" stroke-opacity=".5"/>
+</g>
+<g transform="translate(760 120) rotate(0)">
+<rect x="-40.0" y="-40.0" width="80" height="80" rx="3"/>
+<rect x="-32.8" y="-32.8" width="65.6" height="65.6" stroke-opacity=".5"/>
+<circle r="21.6"/><circle r="16.0" stroke-opacity=".6"/>
+<circle cx="-31.200000000000003" cy="-31.200000000000003" r="4.4"/>
+<circle cx="-31.200000000000003" cy="31.200000000000003" r="4.4"/>
+<circle cx="31.200000000000003" cy="-31.200000000000003" r="4.4"/>
+<circle cx="31.200000000000003" cy="31.200000000000003" r="4.4"/>
+<path d="M-64.0 0H64.0M0 -64.0V64.0" stroke-dasharray="16 4 3 4" stroke="#d9a85f" stroke-opacity=".5"/>
+</g>
+<circle cx="900" cy="520" r="60"/><circle cx="900" cy="520" r="36" stroke-opacity=".5"/>
+<path d="M826 520H974M900 446V594" stroke-dasharray="12 3 2 3" stroke="#d9a85f" stroke-opacity=".45"/>
+<circle cx="1330" cy="470" r="36"/><circle cx="1330" cy="470" r="22" stroke-opacity=".5"/>
+<path d="M1280 470H1380M1330 420V520" stroke-dasharray="12 3 2 3" stroke="#d9a85f" stroke-opacity=".45"/>
+<circle cx="1040" cy="300" r="28"/><circle cx="1040" cy="300" r="17" stroke-opacity=".5"/>
+<path d="M998 300H1082M1040 258V342" stroke-dasharray="12 3 2 3" stroke="#d9a85f" stroke-opacity=".45"/>
+<circle cx="1560" cy="420" r="50"/><circle cx="1560" cy="420" r="30" stroke-opacity=".5"/>
+<path d="M1496 420H1624M1560 356V484" stroke-dasharray="12 3 2 3" stroke="#d9a85f" stroke-opacity=".45"/>
+<circle cx="700" cy="880" r="44"/><circle cx="700" cy="880" r="26" stroke-opacity=".5"/>
+<path d="M642 880H758M700 822V938" stroke-dasharray="12 3 2 3" stroke="#d9a85f" stroke-opacity=".45"/>
+<path d="M1100 140L1260 140" marker-start="url(#a)" marker-end="url(#a)" stroke-opacity=".5"/>
+<text x="1186.0" y="132.0" fill="#c3cfdf" fill-opacity=".55" stroke="none" font-family="ui-monospace,Menlo,monospace" font-size="13">40.00</text>
+<path d="M1300 480L1300 590" marker-start="url(#a)" marker-end="url(#a)" stroke-opacity=".5"/>
+<text x="1306.0" y="527.0" fill="#c3cfdf" fill-opacity=".55" stroke="none" font-family="ui-monospace,Menlo,monospace" font-size="13">R 12.5</text>
+<path d="M900 740L1060 740" marker-start="url(#a)" marker-end="url(#a)" stroke-opacity=".5"/>
+<text x="986.0" y="732.0" fill="#c3cfdf" fill-opacity=".55" stroke="none" font-family="ui-monospace,Menlo,monospace" font-size="13">Ø 24</text>
+<path d="M640 330L640 470" marker-start="url(#a)" marker-end="url(#a)" stroke-opacity=".5"/>
+<text x="646.0" y="392.0" fill="#c3cfdf" fill-opacity=".55" stroke="none" font-family="ui-monospace,Menlo,monospace" font-size="13">35.0</text>
+<path d="M1380 860L1540 860" marker-start="url(#a)" marker-end="url(#a)" stroke-opacity=".5"/>
+<text x="1466.0" y="852.0" fill="#c3cfdf" fill-opacity=".55" stroke="none" font-family="ui-monospace,Menlo,monospace" font-size="13">48.00</text>
+<path d="M1480 200L1480 330" marker-start="url(#a)" marker-end="url(#a)" stroke-opacity=".5"/>
+<text x="1486.0" y="257.0" fill="#c3cfdf" fill-opacity=".55" stroke="none" font-family="ui-monospace,Menlo,monospace" font-size="13">22.0</text>
+<path d="M792 419h156" stroke-opacity=".16"/>
+<path d="M1281 84h81" stroke-opacity=".16"/>
+<path d="M1390 558h113" stroke-opacity=".16"/>
+<path d="M591 510h184" stroke-opacity=".16"/>
+<path d="M1066 626v109" stroke-opacity=".16"/>
+<path d="M972 131h184" stroke-opacity=".16"/>
+<path d="M580 757v128" stroke-opacity=".16"/>
+<path d="M1045 428v89" stroke-opacity=".16"/>
+<path d="M659 873h76" stroke-opacity=".16"/>
+<path d="M1409 426v87" stroke-opacity=".16"/>
+<path d="M906 280h236" stroke-opacity=".16"/>
+<path d="M1485 705v192" stroke-opacity=".16"/>
+<path d="M1155 867v96" stroke-opacity=".16"/>
+<path d="M1112 78v185" stroke-opacity=".16"/>
+</g>
+<text x="1040" y="960" fill="#d9a85f" fill-opacity=".45" font-family="ui-monospace,Menlo,monospace" font-size="13" letter-spacing="1.5">SECTION A–A</text>
+<text x="560" y="60" fill="#c3cfdf" fill-opacity=".45" font-family="ui-monospace,Menlo,monospace" font-size="13" letter-spacing="1.5">SCALE 1:2</text>
+<text x="1380" y="980" fill="#d9a85f" fill-opacity=".45" font-family="ui-monospace,Menlo,monospace" font-size="13" letter-spacing="1.5">2K2R · PARTS</text>
+<text x="780" y="600" fill="#c3cfdf" fill-opacity=".45" font-family="ui-monospace,Menlo,monospace" font-size="13" letter-spacing="1.5">DET. 04</text>
+<text x="1500" y="560" fill="#d9a85f" fill-opacity=".45" font-family="ui-monospace,Menlo,monospace" font-size="13" letter-spacing="1.5">M4 × 0.7</text>
+</svg>
