@@ -6,7 +6,7 @@ require_login();
 $type = $_GET['type'] ?? 'products';
 function safe($v) { $v = (string)$v; return ($v !== '' && strpbrk($v[0], "=+-@\t\r") !== false) ? "'" . $v : $v; } // block spreadsheet formula injection
 
-ob_end_clean();
+while (ob_get_level() > 0) ob_end_clean();
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $type . '_' . date('Ymd_His') . '.csv"');
 $out = fopen('php://output', 'w');

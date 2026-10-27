@@ -5,8 +5,8 @@
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var peso = function (n) { return '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 
-    function animateNum(el, target, money) {
-        var fmt = function (v) { return money ? peso(v) : Math.round(v).toLocaleString('en-PH'); };
+    function animateNum(el, target, money, dec) {
+        var fmt = function (v) { return money ? (dec === 0 ? '₱' + Math.round(v).toLocaleString('en-PH') : peso(v)) : Math.round(v).toLocaleString('en-PH'); };
         if (reduce) { el.textContent = fmt(target); return; }
         var dur = 1100, t0 = performance.now();
         (function tick(t) {
@@ -16,7 +16,7 @@
         })(t0);
     }
     document.querySelectorAll('[data-count]').forEach(function (el) {
-        animateNum(el, parseFloat(el.dataset.count) || 0, el.dataset.money === '1');
+        animateNum(el, parseFloat(el.dataset.count) || 0, el.dataset.money === '1', el.dataset.dec === '0' ? 0 : 2);
     });
 
     var box = document.getElementById('chart'), tip = document.getElementById('chartTip');
@@ -43,8 +43,8 @@
     function draw(animate) {
         var P = D.periods[current], S = P.series, n = S.length;
         lastW = box.clientWidth;
-        var W = Math.max(320, box.clientWidth), H = W < 520 ? 240 : 300;
-        var m = { l: 60, r: 18, t: 16, b: 34 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+        var W = Math.max(320, box.clientWidth), H = W < 520 ? 220 : 240;
+        var m = { l: 54, r: 14, t: 14, b: 30 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
         var maxV = niceMax(Math.max.apply(null, S.map(function (s) { return s.v; })));
         var X = function (i) { return n === 1 ? m.l + iw / 2 : m.l + i * iw / (n - 1); };
         var Y = function (v) { return m.t + ih - (v / maxV) * ih; };
@@ -63,7 +63,7 @@
             g += '<line class="c-grid" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + gy + '" y2="' + gy + '"/>' +
                  '<text class="c-ylab" x="' + (m.l - 10) + '" y="' + (gy + 4) + '" text-anchor="end">' + short(gv) + '</text>';
         }
-        var step = Math.ceil(n / (W < 520 ? 5 : 10)), xl = '';
+        var step = Math.ceil(n / (W < 520 ? 4 : 7)), xl = '';
         S.forEach(function (s, idx) {
             if ((n - 1 - idx) % step === 0) {
                 xl += '<text class="c-xlab" x="' + X(idx) + '" y="' + (H - 10) + '" text-anchor="middle">' + s.l + '</text>';
@@ -80,7 +80,7 @@
         box.classList.toggle('static', !animate || reduce);
         box.querySelector('svg') && box.removeChild(box.querySelector('svg'));
         var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Sales chart">' +
-            '<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6a13" stop-opacity=".42"/><stop offset="1" stop-color="#ff6a13" stop-opacity="0"/></linearGradient></defs>' +
+            '<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop class="gs1" offset="0"/><stop class="gs2" offset="1"/></linearGradient></defs>' +
             g + xl + '<path class="c-area" d="' + area + '" fill="url(#ag)"/>' +
             '<path class="c-line" pathLength="1" d="' + d + '"/>' +
             '<line class="c-guide" id="cGuide" y1="' + m.t + '" y2="' + base + '"/>' +
@@ -109,7 +109,8 @@
     function setPeriod(key) {
         current = key;
         var P = D.periods[key];
-        document.querySelectorAll('[data-period]').forEach(function (b) { b.classList.toggle('active', b.dataset.period === key); });
+        document.querySelectorAll('.sum[data-period]').forEach(function (b) { b.classList.toggle('active', b.dataset.period === key); });
+        var sel = document.getElementById('periodSel'); if (sel) sel.value = key;
         animateNum(bigNum, P.cur, true);
         var p = pct(P.cur, P.prev);
         bigDelta.className = 'delta ' + (p === null ? 'up' : p > 0 ? 'up' : p < 0 ? 'down' : 'flat');
@@ -119,9 +120,11 @@
         range.textContent = 'Total in range: ' + peso(total);
         draw(true);
     }
-    document.querySelectorAll('[data-period]').forEach(function (b) {
+    document.querySelectorAll('.sum[data-period]').forEach(function (b) {
         b.addEventListener('click', function () { setPeriod(b.dataset.period); });
     });
+    var selEl = document.getElementById('periodSel');
+    if (selEl) selEl.addEventListener('change', function () { setPeriod(selEl.value); });
     var rt;
     if (window.ResizeObserver) new ResizeObserver(function () { clearTimeout(rt); rt = setTimeout(function () { if (box.clientWidth !== lastW) draw(false); }, 120); }).observe(box);
     setPeriod('daily');

@@ -4,17 +4,11 @@ require_once __DIR__ . '/includes/header.php';
 
 /* ---------- inventory & returns ---------- */
 $totalProducts = (int)$pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
+$newThisWeek = (int)$pdo->query("SELECT COUNT(*) FROM products WHERE created_at >= (NOW() - INTERVAL 7 DAY)")->fetchColumn();
 $lowCount = (int)$pdo->query("SELECT COUNT(*) FROM products WHERE quantity > 0 AND quantity <= minimum_stock")->fetchColumn();
 $outCount = (int)$pdo->query("SELECT COUNT(*) FROM products WHERE quantity = 0")->fetchColumn();
-$stockValue = (float)$pdo->query("SELECT COALESCE(SUM(quantity*unit_price),0) FROM products")->fetchColumn();
-$healthy = max(0, $totalProducts - $lowCount - $outCount);
-$healthPct = $totalProducts ? round($healthy / $totalProducts * 100) : 0;
+$needRestock = $lowCount + $outCount;
 $retPending = (int)$pdo->query("SELECT COUNT(*) FROM returns WHERE status='Pending'")->fetchColumn();
-$retTotal = (int)$pdo->query("SELECT COUNT(*) FROM returns")->fetchColumn();
-$retDone = $retTotal - $retPending;
-$retPct = $retTotal ? round($retDone / $retTotal * 100) : 100;
-$unitsMonth = (int)$pdo->query("SELECT COALESCE(SUM(si.quantity),0) FROM sale_items si JOIN sales s ON s.sale_id=si.sale_id
-    WHERE s.status='completed' AND YEAR(s.sale_date)=YEAR(CURDATE()) AND MONTH(s.sale_date)=MONTH(CURDATE())")->fetchColumn();
 
 /* ---------- sales analytics (completed sales only) ---------- */
 $rows = $pdo->query("SELECT DATE(sale_date) d, SUM(total_amount) t, COUNT(*) c FROM sales
@@ -68,7 +62,6 @@ for ($i = 4; $i >= 0; $i--) {
     $y = (int)$today->format('Y') - $i;
     $annual[] = point((string)$y, $ya[$y] ?? null);
 }
-
 $defs = [
     'daily'     => ['Daily',     $daily,     'Today',        'yesterday',    'Last 14 days'],
     'weekly'    => ['Weekly',    $weekly,    'This week',    'last week',    'Last 12 weeks'],
@@ -79,141 +72,188 @@ $defs = [
 $periods = [];
 foreach ($defs as $key => [$label, $series, $curName, $prevName, $rangeName]) {
     $n = count($series);
-    $periods[$key] = [
-        'label' => $label, 'series' => $series, 'curName' => $curName, 'prevName' => $prevName, 'range' => $rangeName,
-        'cur' => $series[$n - 1]['v'], 'prev' => $series[$n - 2]['v'], 'curC' => $series[$n - 1]['c'],
-    ];
+    $periods[$key] = ['label' => $label, 'series' => $series, 'curName' => $curName, 'prevName' => $prevName, 'range' => $rangeName,
+        'cur' => $series[$n - 1]['v'], 'prev' => $series[$n - 2]['v'], 'curC' => $series[$n - 1]['c']];
 }
+function pct_change(float $cur, float $prev): ?float { return $prev > 0 ? ($cur - $prev) / $prev * 100 : null; }
 function delta_html(float $cur, float $prev, string $vs): string {
-    if ($prev > 0) {
-        $p = ($cur - $prev) / $prev * 100;
+    $p = pct_change($cur, $prev);
+    if ($p !== null) {
         $cls = $p > 0 ? 'up' : ($p < 0 ? 'down' : 'flat');
         $txt = $p == 0 ? '— no change' : ($p > 0 ? '▲ ' : '▼ ') . number_format(abs($p), 1) . '%';
     } elseif ($cur > 0) { $cls = 'up'; $txt = '▲ New'; }
-    else { $cls = 'flat'; $txt = '— no sales'; }
+    else { $cls = 'flat'; $txt = '— none'; }
     return '<span class="delta ' . $cls . '">' . $txt . ' <small>vs ' . e($vs) . '</small></span>';
 }
+$monthCur = $periods['monthly']['cur']; $monthPrev = $periods['monthly']['prev'];
+$dayCur = $periods['daily']['cur'];     $dayPrev = $periods['daily']['prev'];
+$pm = pct_change($monthCur, $monthPrev); $pd = pct_change($dayCur, $dayPrev);
 
-$tNow = $periods['daily']['cur']; $tPrev = $periods['daily']['prev'];
-$todayBar = $tPrev > 0 ? min(100, round($tNow / $tPrev * 100)) : ($tNow > 0 ? 100 : 0);
-$monthTotal = $periods['monthly']['cur']; $monthCount = $periods['monthly']['curC'];
-$avgSale = $monthCount ? $monthTotal / $monthCount : 0;
+/* ---------- categories donut ---------- */
+$catRows = $pdo->query("SELECT COALESCE(c.category_name,'Uncategorized') name, COUNT(*) n FROM products p
+    LEFT JOIN categories c ON c.category_id=p.category_id GROUP BY name ORDER BY n DESC")->fetchAll();
+$cats = array_slice($catRows, 0, 5);
+$others = array_sum(array_column(array_slice($catRows, 5), 'n'));
+if ($others > 0) $cats[] = ['name' => 'Others', 'n' => $others];
+$palette = ['#22d3ee', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899', '#94a3d8'];
+$R = 70; $C = 2 * M_PI * $R;
 
-$low = $pdo->query("SELECT product_code, product_name, quantity, minimum_stock FROM products
-                    WHERE quantity <= minimum_stock ORDER BY quantity ASC LIMIT 6")->fetchAll();
-$recent = $pdo->query("SELECT s.sale_id, s.sale_date, s.total_amount, s.status, s.customer_name, u.full_name
-                       FROM sales s JOIN users u ON u.user_id = s.user_id
-                       ORDER BY s.sale_date DESC, s.sale_id DESC LIMIT 6")->fetchAll();
+/* ---------- lists ---------- */
+$top = $pdo->query("SELECT p.product_name, SUM(si.quantity) q FROM sale_items si
+    JOIN sales s ON s.sale_id=si.sale_id JOIN products p ON p.product_id=si.product_id
+    WHERE s.status='completed' AND s.sale_date >= (NOW() - INTERVAL 30 DAY)
+    GROUP BY p.product_id ORDER BY q DESC LIMIT 5")->fetchAll();
+$topMax = $top ? max(array_column($top, 'q')) : 1;
+$recent = $pdo->query("SELECT s.sale_id, s.sale_date, s.total_amount, s.status, u.full_name,
+    (SELECT COALESCE(SUM(quantity),0) FROM sale_items WHERE sale_id=s.sale_id) AS items
+    FROM sales s JOIN users u ON u.user_id=s.user_id ORDER BY s.sale_date DESC, s.sale_id DESC LIMIT 5")->fetchAll();
+$low = $pdo->query("SELECT product_name, quantity, minimum_stock FROM products
+    WHERE quantity <= minimum_stock ORDER BY quantity ASC, product_name LIMIT 5")->fetchAll();
 $i = 0;
 ?>
-<h1 class="reveal">Dashboard</h1>
-<p class="page-sub reveal" style="--i:1">Your central hub for sales, stock, and shop activity.</p>
+<section class="welcome">
+    <h1 class="reveal"><span class="wave">👋</span> Welcome Back, <?= e($_SESSION['full_name']) ?>!</h1>
+    <p class="reveal" style="--i:1">Here’s what’s happening in your shop today.</p>
+</section>
 
-<!-- highlight cards -->
-<div class="hl-grid">
-    <div class="hl reveal" style="--i:<?= ++$i ?>">
-        <div class="hl-head">
-            <div class="hl-ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L20 7H6"/></svg></div>
-            <div><div class="hl-title">Sales Today</div><div class="hl-sub">Compared with yesterday</div></div>
-            <?php $pt = $tPrev > 0 ? ($tNow - $tPrev) / $tPrev * 100 : null; ?>
-            <span class="pill <?= $pt === null ? ($tNow > 0 ? 'up' : '') : ($pt >= 0 ? 'up' : 'down') ?>"><?= $pt === null ? ($tNow > 0 ? 'New' : 'No sales') : (($pt >= 0 ? '▲ ' : '▼ ') . number_format(abs($pt), 1) . '%') ?></span>
-        </div>
-        <div class="hl-row"><span>Today (<?= (int)$periods['daily']['curC'] ?> sales)</span><b><?= money($tNow) ?></b></div>
-        <div class="bar"><i style="--w:<?= $todayBar ?>%"></i></div>
-        <div class="hl-row"><span>Yesterday</span><b><?= money($tPrev) ?></b></div>
-        <div class="hl-foot"><span>This month: <?= money($monthTotal) ?></span><a class="btn btn-sm" href="sales.php">Show ›</a></div>
+<div class="kpis">
+    <div class="kpi k-purple reveal" style="--i:<?= ++$i ?>">
+        <div class="kico"><svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
+        <div><div class="klabel">Total Products</div><div class="kval" data-count="<?= $totalProducts ?>"><?= $totalProducts ?></div>
+            <div class="ksub <?= $newThisWeek ? '' : 'flat' ?>">↑ <?= $newThisWeek ?> new this week</div></div>
     </div>
-
-    <div class="hl reveal" style="--i:<?= ++$i ?>">
-        <div class="hl-head">
-            <div class="hl-ico"><svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
-            <div><div class="hl-title">Stock Health</div><div class="hl-sub"><?= $totalProducts ?> products tracked</div></div>
-            <span class="pill <?= ($lowCount + $outCount) ? 'warn' : 'up' ?>"><?= ($lowCount + $outCount) ? 'Needs restock' : 'Healthy' ?></span>
-        </div>
-        <div class="hl-row"><span>Well stocked (<?= $healthPct ?>%)</span><b><?= $healthy ?> of <?= $totalProducts ?></b></div>
-        <div class="bar"><i style="--w:<?= $healthPct ?>%"></i></div>
-        <div class="hl-row"><span>Low / out of stock</span><b><?= $lowCount ?> low · <?= $outCount ?> out</b></div>
-        <div class="hl-foot"><span>Inventory value: <?= money($stockValue) ?></span><a class="btn btn-sm" href="inventory.php?filter=low">Restock ›</a></div>
+    <div class="kpi k-green reveal" style="--i:<?= ++$i ?>">
+        <div class="kico"><svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L20 7H6"/></svg></div>
+        <div><div class="klabel">Sales This Month</div><div class="kval" data-count="<?= $monthCur ?>" data-money="1"><?= money($monthCur) ?></div>
+            <div class="ksub <?= $pm === null ? ($monthCur > 0 ? '' : 'flat') : ($pm >= 0 ? '' : 'down') ?>"><?= $pm === null ? ($monthCur > 0 ? '↑ New' : '— no sales yet') : (($pm >= 0 ? '↑ ' : '↓ ') . number_format(abs($pm), 1) . '% from last month') ?></div></div>
     </div>
-
-    <div class="hl reveal" style="--i:<?= ++$i ?>">
-        <div class="hl-head">
-            <div class="hl-ico"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></div>
-            <div><div class="hl-title">Returns / Warranty</div><div class="hl-sub">Customer concerns</div></div>
-            <span class="pill <?= $retPending ? 'warn' : 'up' ?>"><?= $retPending ? $retPending . ' pending' : 'All clear' ?></span>
-        </div>
-        <div class="hl-row"><span>Resolved (<?= $retPct ?>%)</span><b><?= $retDone ?> of <?= $retTotal ?></b></div>
-        <div class="bar"><i style="--w:<?= $retPct ?>%"></i></div>
-        <div class="hl-row"><span>Waiting for action</span><b><?= $retPending ?></b></div>
-        <div class="hl-foot"><span>Returns &amp; warranty log</span><a class="btn btn-sm" href="returns.php">Open ›</a></div>
+    <div class="kpi k-orange reveal" style="--i:<?= ++$i ?>">
+        <div class="kico"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v5M12 18v.01"/></svg></div>
+        <div><div class="klabel">Low Stock Items</div><div class="kval" data-count="<?= $needRestock ?>"><?= $needRestock ?></div>
+            <div class="ksub <?= $needRestock ? 'warn' : '' ?>"><?= $needRestock ? '⚠ Need restocking' : '✓ All well stocked' ?></div></div>
+    </div>
+    <div class="kpi k-blue reveal" style="--i:<?= ++$i ?>">
+        <div class="kico"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+        <div><div class="klabel">Sales Today (<?= (int)$periods['daily']['curC'] ?>)</div><div class="kval" data-count="<?= $dayCur ?>" data-money="1"><?= money($dayCur) ?></div>
+            <div class="ksub <?= $pd === null ? ($dayCur > 0 ? '' : 'flat') : ($pd >= 0 ? '' : 'down') ?>"><?= $pd === null ? ($dayCur > 0 ? '↑ New today' : '— no sales yet') : (($pd >= 0 ? '↑ ' : '↓ ') . number_format(abs($pd), 1) . '% from yesterday') ?></div></div>
     </div>
 </div>
 
-<!-- period totals (click to change the chart) -->
-<div class="sum-grid">
-<?php foreach ($periods as $key => $P): ?>
-    <button type="button" class="sum reveal" style="--i:<?= ++$i ?>" data-period="<?= $key ?>">
-        <div class="s-label"><?= e($P['label']) ?> sales</div>
-        <div class="s-val" data-count="<?= $P['cur'] ?>" data-money="1"><?= money($P['cur']) ?></div>
-        <?= delta_html($P['cur'], $P['prev'], $P['prevName']) ?>
-    </button>
-<?php endforeach; ?>
-</div>
-
-<!-- chart -->
-<div class="card chart-card reveal" style="--i:<?= ++$i ?>">
-    <div class="chart-top">
-        <div>
-            <div class="muted">Sales Analytics</div>
-            <div class="chart-big" id="bigNum"><?= money($periods['daily']['cur']) ?></div>
-            <div><span id="bigDelta" class="delta flat"></span></div>
-            <div class="muted" style="font-size:.8rem;margin-top:2px"><span id="chartSub"></span> · <span id="rangeTotal"></span></div>
+<div class="dash">
+    <!-- Sales overview -->
+    <section class="dcard a-sales reveal" style="--i:<?= ++$i ?>">
+        <div class="dhead">
+            <svg class="hi" viewBox="0 0 24 24"><path d="M5 20V11M11 20V4M17 20v-7M3 20h18"/></svg><h2>Sales Overview</h2>
+            <select id="periodSel" aria-label="Period">
+                <?php foreach ($periods as $key => $P): ?><option value="<?= $key ?>"><?= e($P['label']) ?></option><?php endforeach; ?>
+            </select>
         </div>
-        <div class="tabs">
-            <?php foreach ($periods as $key => $P): ?><button type="button" class="tab" data-period="<?= $key ?>"><?= e($P['label']) ?></button><?php endforeach; ?>
+        <div class="s-meta"><span class="chart-big" id="bigNum"><?= money($periods['daily']['cur']) ?></span><span id="bigDelta" class="delta flat"></span></div>
+        <div class="s-sub"><span id="chartSub"></span> · <span id="rangeTotal"></span></div>
+        <div class="chart-box" id="chart"><div class="tip" id="chartTip"></div></div>
+        <div class="mini">
+            <?php foreach ($periods as $key => $P): ?>
+            <button type="button" class="sum" data-period="<?= $key ?>">
+                <div class="s-label"><?= e($P['label']) ?></div>
+                <div class="s-val" data-count="<?= $P['cur'] ?>" data-money="1" data-dec="0">₱<?= number_format($P['cur'], 0) ?></div>
+                <?= delta_html($P['cur'], $P['prev'], $P['prevName']) ?>
+            </button>
+            <?php endforeach; ?>
         </div>
-    </div>
-    <div class="chart-box" id="chart"><div class="tip" id="chartTip"></div></div>
-</div>
+    </section>
 
-<!-- quick numbers -->
-<div class="grid">
-    <div class="stat reveal" style="--i:<?= ++$i ?>"><div class="label">Total products</div><div class="value" data-count="<?= $totalProducts ?>"><?= $totalProducts ?></div></div>
-    <div class="stat reveal" style="--i:<?= ++$i ?>"><div class="label">Inventory value</div><div class="value" data-count="<?= $stockValue ?>" data-money="1"><?= money($stockValue) ?></div></div>
-    <div class="stat reveal" style="--i:<?= ++$i ?>"><div class="label">Units sold this month</div><div class="value" data-count="<?= $unitsMonth ?>"><?= $unitsMonth ?></div></div>
-    <div class="stat reveal" style="--i:<?= ++$i ?>"><div class="label">Average sale (this month)</div><div class="value" data-count="<?= $avgSale ?>" data-money="1"><?= money($avgSale) ?></div></div>
-</div>
+    <!-- Categories -->
+    <section class="dcard a-cats reveal" style="--i:<?= ++$i ?>">
+        <div class="dhead"><svg class="hi" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><h2>Product Categories</h2></div>
+        <?php if (!$totalProducts): ?><p class="empty">No products yet. <a href="product_form.php">Add your first product</a>.</p>
+        <?php else: ?>
+        <div class="donut-wrap">
+            <div class="donut">
+                <svg viewBox="0 0 200 200">
+                    <?php $off = 0; foreach ($cats as $k => $c):
+                        $len = max(0, $C * $c['n'] / $totalProducts - 3); $gap = $C - $len; ?>
+                    <circle cx="100" cy="100" r="<?= $R ?>" stroke="<?= $palette[$k % count($palette)] ?>"
+                            style="--c:<?= round($C, 2) ?>;--len:<?= round($len, 2) ?>;--gap:<?= round($gap, 2) ?>;--k:<?= $k ?>"
+                            stroke-dasharray="<?= round($len, 2) ?> <?= round($gap, 2) ?>" stroke-dashoffset="<?= round(-$off, 2) ?>"/>
+                    <?php $off += $C * $c['n'] / $totalProducts; endforeach; ?>
+                </svg>
+                <div class="mid"><b data-count="<?= $totalProducts ?>"><?= $totalProducts ?></b><span>Products</span></div>
+            </div>
+            <div class="legend">
+                <?php foreach ($cats as $k => $c): ?>
+                <div><i style="background:<?= $palette[$k % count($palette)] ?>;color:<?= $palette[$k % count($palette)] ?>"></i><span><?= e($c['name']) ?></span><b><?= (int)$c['n'] ?></b></div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+    </section>
 
-<!-- recent activity -->
-<div class="two-col">
-    <div class="card reveal" style="--i:<?= ++$i ?>">
-        <div class="card-head"><h2>Recent Sales</h2><a href="sales.php">View all →</a></div>
+    <!-- Recent sales -->
+    <section class="dcard a-recent reveal" style="--i:<?= ++$i ?>">
+        <div class="dhead"><svg class="hi" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><h2>Recent Sales</h2><a class="more" href="sales.php">View All</a></div>
         <?php if (!$recent): ?><p class="empty">No sales recorded yet. <a href="sales_new.php">Record a sale</a>.</p>
         <?php else: ?>
         <div class="table-wrap"><table>
-            <tr><th>Sale #</th><th>Date</th><th>Cashier</th><th class="num">Total</th><th></th></tr>
+            <tr><th>Date</th><th>Items</th><th class="num">Total</th><th>Staff</th></tr>
             <?php foreach ($recent as $s): ?>
-            <tr><td>#<?= (int)$s['sale_id'] ?></td><td><?= e($s['sale_date']) ?></td><td><?= e($s['full_name']) ?></td>
-                <td class="num"><?= money($s['total_amount']) ?></td>
-                <td><?php if ($s['status'] === 'voided'): ?><span class="tag tag-out">Voided</span> <?php endif; ?><a href="sale_view.php?id=<?= (int)$s['sale_id'] ?>">View</a></td></tr>
+            <tr><td><a href="sale_view.php?id=<?= (int)$s['sale_id'] ?>"><?= e(date('M j, Y', strtotime($s['sale_date']))) ?></a></td>
+                <td><?= (int)$s['items'] ?> items</td>
+                <td class="num"><?= $s['status'] === 'voided' ? '<span class="tag tag-out">Voided</span>' : money($s['total_amount']) ?></td>
+                <td><?= e(strtok($s['full_name'], ' ')) ?></td></tr>
             <?php endforeach; ?>
         </table></div>
         <?php endif; ?>
-    </div>
-    <div class="card reveal" style="--i:<?= ++$i ?>">
-        <div class="card-head"><h2>Low-stock Alerts</h2><a href="inventory.php?filter=low">View all →</a></div>
-        <?php if (!$low): ?><p class="empty">All products are above their minimum stock. 🎉</p>
+    </section>
+
+    <!-- Top selling -->
+    <section class="dcard a-top reveal" style="--i:<?= ++$i ?>">
+        <div class="dhead"><svg class="hi" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L20 7H6"/></svg><h2>Top Selling Products</h2><a class="more" href="reports.php">View All</a></div>
+        <?php if (!$top): ?><p class="empty">No sales in the last 30 days yet.</p>
+        <?php else: ?>
+        <div class="top-list">
+            <?php foreach ($top as $k => $t): ?>
+            <div class="toprow">
+                <span class="n"><?= $k + 1 ?>.</span>
+                <span class="pico"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 3v3M12 3v3M15 3v3M9 18v3M12 18v3M15 18v3M3 9h3M3 12h3M3 15h3M18 9h3M18 12h3M18 15h3"/></svg></span>
+                <div style="min-width:0"><div class="tname"><?= e($t['product_name']) ?></div><div class="tbar"><i style="--w:<?= round($t['q'] / $topMax * 100) ?>%"></i></div></div>
+                <span class="tsold"><?= (int)$t['q'] ?> sold</span>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <p class="s-sub" style="margin:12px 0 0">Last 30 days</p>
+        <?php endif; ?>
+    </section>
+
+    <!-- Quick actions -->
+    <section class="dcard a-quick reveal" style="--i:<?= ++$i ?>">
+        <div class="dhead"><svg class="hi" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg><h2>Quick Actions</h2></div>
+        <div class="qa-grid">
+            <a class="qa" href="<?= is_admin() ? 'product_form.php' : 'products.php' ?>"><svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/><circle cx="19" cy="19" r="4" fill="#07124a"/><path d="M19 17v4M17 19h4"/></svg>Add New Product</a>
+            <a class="qa" href="sales_new.php"><svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L20 7H6"/></svg>Record Sale</a>
+            <a class="qa" href="inventory.php"><svg viewBox="0 0 24 24"><path d="M12 3v11M7.5 10 12 14.5 16.5 10"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Stock In</a>
+            <a class="qa" href="reports.php"><svg viewBox="0 0 24 24"><path d="M5 20V11M11 20V4M17 20v-7M3 20h18"/></svg>View Reports</a>
+        </div>
+    </section>
+
+    <!-- Low stock -->
+    <section class="dcard a-low reveal" style="--i:<?= ++$i ?>">
+        <div class="dhead"><svg class="hi" viewBox="0 0 24 24" style="stroke:#f87171"><path d="M12 3 2 20h20z"/><path d="M12 10v5M12 18v.01"/></svg><h2>Low Stock Alerts</h2><a class="more" href="inventory.php?filter=low">View All</a></div>
+        <?php if (!$low): ?><p class="empty">All products are above their minimum stock.</p>
         <?php else: ?>
         <div class="table-wrap"><table>
-            <tr><th>Code</th><th>Product</th><th class="num">On hand</th><th class="num">Min</th></tr>
+            <tr><th>Product</th><th class="num">Stock</th><th class="num">Min</th></tr>
             <?php foreach ($low as $p): ?>
-            <tr><td><?= e($p['product_code']) ?></td><td><?= e($p['product_name']) ?></td>
-                <td class="num"><span class="tag <?= $p['quantity'] == 0 ? 'tag-out' : 'tag-low' ?>"><?= (int)$p['quantity'] ?></span></td>
-                <td class="num"><?= (int)$p['minimum_stock'] ?></td></tr>
+            <tr><td><?= e($p['product_name']) ?></td><td class="num"><span class="low-n"><?= (int)$p['quantity'] ?></span></td><td class="num"><?= (int)$p['minimum_stock'] ?></td></tr>
             <?php endforeach; ?>
         </table></div>
         <?php endif; ?>
-    </div>
+    </section>
+
+    <!-- Banner -->
+    <section class="dcard a-banner reveal" style="--i:<?= ++$i ?>">
+        <div class="bico"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 3v3M12 3v3M15 3v3M9 18v3M12 18v3M15 18v3M3 9h3M3 12h3M3 15h3M18 9h3M18 12h3M18 15h3"/></svg></div>
+        <strong>Smart Inventory<br>Better Business</strong>
+    </section>
 </div>
 
 <script>window.DASH = { periods: <?= json_encode($periods, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?> };</script>

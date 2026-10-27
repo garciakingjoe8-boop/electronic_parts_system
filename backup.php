@@ -3,7 +3,7 @@
 require_once __DIR__ . '/includes/functions.php';
 require_admin();
 
-ob_end_clean();
+while (ob_get_level() > 0) ob_end_clean();
 header('Content-Type: application/sql; charset=utf-8');
 header('Content-Disposition: attachment; filename="electronic_parts_backup_' . date('Ymd_His') . '.sql"');
 
