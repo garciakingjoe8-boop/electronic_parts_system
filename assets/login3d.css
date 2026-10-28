@@ -97,3 +97,14 @@ h1{margin:0 0 24px;text-align:center;font-size:1.9rem;line-height:1.25;font-weig
   .p-tag{display:none}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* username suggestions (only names already used on this computer) */
+.sugg{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;background:#fff;color:#161a33;border-radius:12px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.55)}
+.sugg[hidden]{display:none}
+.sugg .lab{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#6b7391;padding:5px 10px 3px}
+.sugg .row{display:flex;align-items:center;border-radius:8px}
+.sugg .row:hover{background:#eef0ff}
+.sugg .pick{flex:1;text-align:left;background:none;border:0;font:inherit;font-weight:600;color:#161a33;padding:9px 10px;cursor:pointer;display:flex;align-items:center;gap:10px}
+.sugg .pick::before{content:"";width:18px;height:18px;flex:none;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2359607f' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7'/%3E%3C/svg%3E")}
+.sugg .x{background:none;border:0;color:#8a90ab;font-size:1.2rem;line-height:1;padding:6px 12px;cursor:pointer;border-radius:8px}
+.sugg .x:hover{color:#d33;background:#fde8e8}

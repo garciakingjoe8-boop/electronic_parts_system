@@ -6,6 +6,13 @@
 </div>
 </div>
 <script>
+try {
+    var __u = <?= json_encode($_SESSION['username'] ?? '') ?>;
+    if (__u) {
+        var __l = JSON.parse(localStorage.getItem('k2r_users') || '[]').filter(function (x) { return x !== __u; });
+        __l.unshift(__u); localStorage.setItem('k2r_users', JSON.stringify(__l.slice(0, 5)));
+    }
+} catch (e) {}
 window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
 (function () {
     var b = document.body;

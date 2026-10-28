@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             unset($_SESSION['fails'], $_SESSION['lock_until']);
             $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['username'] = $user['username'];
             $_SESSION['full_name'] = $user['full_name'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['last_active'] = time();
@@ -75,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?= csrf_field() ?>
             <div class="in">
               <input name="username" value="<?= e($username) ?>" placeholder="Enter Username" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly onfocus="this.removeAttribute('readonly')" aria-label="Username">
+              <div class="sugg" id="sugg" hidden></div>
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
             </div>
             <div class="in">
@@ -93,6 +95,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <script>
 window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
+// Username suggestions: only usernames that have already logged in on THIS computer
+(function () {
+    var inp = document.querySelector('input[name="username"]'), box = document.getElementById('sugg'), pwEl = document.getElementById('pw');
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem('k2r_users') || '[]'); } catch (e) {}
+    if (!inp || !box || !list.length) return;
+    function save() { try { localStorage.setItem('k2r_users', JSON.stringify(list)); } catch (e) {} }
+    function render() {
+        var q = inp.value.trim().toLowerCase();
+        var items = list.filter(function (u) { return u.toLowerCase().indexOf(q) !== -1; });
+        if (!items.length) { box.hidden = true; return; }
+        box.innerHTML = '';
+        var lab = document.createElement('div'); lab.className = 'lab'; lab.textContent = 'Used on this computer'; box.appendChild(lab);
+        items.forEach(function (u) {
+            var row = document.createElement('div'); row.className = 'row';
+            var pick = document.createElement('button'); pick.type = 'button'; pick.className = 'pick'; pick.textContent = u;
+            pick.addEventListener('mousedown', function (e) { e.preventDefault(); inp.value = u; box.hidden = true; pwEl.focus(); });
+            var x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = '×'; x.title = 'Remove from this list';
+            x.addEventListener('mousedown', function (e) { e.preventDefault(); list = list.filter(function (v) { return v !== u; }); save(); render(); });
+            row.appendChild(pick); row.appendChild(x); box.appendChild(row);
+        });
+        box.hidden = false;
+    }
+    inp.addEventListener('focus', render); inp.addEventListener('click', render); inp.addEventListener('input', render);
+    inp.addEventListener('blur', function () { setTimeout(function () { box.hidden = true; }, 120); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') box.hidden = true; });
+})();
+
 // show / hide password
 var pw = document.getElementById('pw');
 document.getElementById('eye').addEventListener('click', function () { pw.type = pw.type === 'password' ? 'text' : 'password'; });

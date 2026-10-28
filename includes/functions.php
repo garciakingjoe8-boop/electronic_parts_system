@@ -57,7 +57,7 @@ function require_login(): void {
     $_SESSION['last_active'] = time();
 
     // the account must still exist; role/name always come from the database (so changes apply immediately)
-    $st = $pdo->prepare("SELECT full_name, role FROM users WHERE user_id = ?");
+    $st = $pdo->prepare("SELECT username, full_name, role FROM users WHERE user_id = ?");
     $st->execute([$_SESSION['user_id']]);
     $u = $st->fetch();
     if (!$u) {
@@ -66,6 +66,7 @@ function require_login(): void {
         flash('error', 'Your account is no longer available.');
         redirect('login.php');
     }
+    $_SESSION['username'] = $u['username'];
     $_SESSION['full_name'] = $u['full_name'];
     $_SESSION['role'] = $u['role'];
 }
