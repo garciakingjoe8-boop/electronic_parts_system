@@ -71,10 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <h1>Hello !<br>Welcome Back</h1>
           <?php show_flash(); ?>
           <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
-          <form method="post" autocomplete="on">
+          <form method="post" autocomplete="off">
             <?= csrf_field() ?>
             <div class="in">
-              <input name="username" value="<?= e($username) ?>" placeholder="Enter Username" required autofocus autocomplete="username" aria-label="Username">
+              <input name="username" value="<?= e($username) ?>" placeholder="Enter Username" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly onfocus="this.removeAttribute('readonly')" aria-label="Username">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
             </div>
             <div class="in">
